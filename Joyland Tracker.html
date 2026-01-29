@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Joyland Predictor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        
+        body { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #f0f0f0; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        header { text-align: center; margin-bottom: 30px; padding: 20px; background: rgba(0, 0, 0, 0.3); border-radius: 15px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); }
+        h1 { color: #4cc9f0; margin-bottom: 10px; font-size: 2.2rem; }
+        .subtitle { color: #b8b8d1; font-size: 1rem; }
+        
+        .main-content { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+        @media (max-width: 900px) { .main-content { grid-template-columns: 1fr; } }
+        
+        .tracker-section, .counters-section { background: rgba(30, 30, 50, 0.7); border-radius: 15px; padding: 20px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); }
+        .section-title { color: #72efdd; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #4361ee; font-size: 1.3rem; }
+        
+        .encounter-selector { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+        .encounter-btn { background: #4361ee; color: white; border: none; padding: 14px 10px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .encounter-btn:hover { background: #3a56d4; transform: translateY(-2px); }
+        .encounter-btn:active { transform: translateY(0); }
+        .encounter-btn:disabled { background: #555; color: #aaa; cursor: not-allowed; transform: none; }
+        .encounter-btn.special { background: #f72585; box-shadow: 0 0 10px rgba(247, 37, 133, 0.5); }
+        
+        .compass-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; display: none; }
+        .compass-selector.show { display: grid; }
+        .compass-btn { background: #2dd4bf; color: #1a1a2e; border: none; padding: 12px; border-radius: 10px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .compass-btn:hover { background: #20c9b2; transform: translateY(-2px); }
+        
+        .sequence-tracker { background: rgba(0, 0, 0, 0.3); border-radius: 10px; padding: 15px; margin-bottom: 15px; }
+        .current-sequence { font-size: 1.2rem; margin-bottom: 12px; color: #72efdd; }
+        
+        .sequence-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+        .sequence-box { background: #7209b7; border-radius: 8px; padding: 12px; text-align: center; transition: all 0.3s ease; min-height: 70px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .sequence-box.active { background: #f72585; box-shadow: 0 0 10px rgba(247, 37, 133, 0.5); }
+        .sequence-box.completed { background: #4ade80; color: #1a1a2e; }
+        .sequence-box.eliminated { background: #555; opacity: 0.4; }
+        .sequence-number { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+        .sequence-status { font-size: 0.85rem; font-weight: 600; text-transform: capitalize; }
+        
+        .sequence-complete-notification { background: rgba(74, 222, 128, 0.2); border: 2px solid #4ade80; border-radius: 10px; padding: 12px; margin-top: 15px; display: none; align-items: center; justify-content: center; gap: 10px; text-align: center; }
+        .sequence-complete-notification.show { display: flex; }
+        .notification-icon { font-size: 1.3rem; color: #4ade80; }
+        .notification-text { font-size: 1rem; font-weight: 700; color: #b8ffd1; }
+        
+        .special-notification { background: rgba(247, 37, 133, 0.2); border: 2px solid #f72585; border-radius: 10px; padding: 12px; margin-top: 15px; display: none; align-items: center; gap: 10px; }
+        .special-notification.show { display: flex; animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(247, 37, 133, 0.5); }
+            70% { box-shadow: 0 0 0 8px rgba(247, 37, 133, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(247, 37, 133, 0); }
+        }
+        
+        .sequence-controls { display: flex; gap: 12px; margin-top: 15px; }
+        .sequence-btn { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .sequence-btn.undo { background: #4361ee; color: white; }
+        .sequence-btn.undo:hover { background: #3a56d4; }
+        .sequence-btn.undo:disabled { background: #555; color: #aaa; cursor: not-allowed; }
+        .sequence-btn.reset { background: #f72585; color: white; }
+        .sequence-btn.reset:hover { background: #e11575; }
+        
+        .counters-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .counter { background: rgba(0, 0, 0, 0.3); border-radius: 10px; padding: 15px; text-align: center; position: relative; }
+        .counter-value { font-size: 2.5rem; font-weight: 700; color: #f72585; margin: 8px 0; }
+        .counter-title { color: #b8b8d1; font-size: 1rem; }
+        .counter-reset-btn { position: absolute; top: 10px; right: 10px; background: rgba(255, 255, 255, 0.1); border: none; color: #b8b8d1; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 0.8rem; }
+        .counter-reset-btn:hover { background: rgba(255, 255, 255, 0.2); color: white; }
+        
+        .cycle-tracker { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 20px; }
+        .cycle-tracker-item { background: rgba(0, 0, 0, 0.3); border-radius: 10px; padding: 15px; text-align: center; }
+        .cycle-tracker-value { font-size: 2.2rem; font-weight: 700; color: #4cc9f0; margin: 5px 0; }
+        .cycle-tracker-title { color: #b8b8d1; font-size: 0.9rem; }
+        
+        .history-list { max-height: 180px; overflow-y: auto; background: rgba(0, 0, 0, 0.2); border-radius: 10px; padding: 8px; margin-top: 12px; }
+        .history-item { padding: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 0.9rem; }
+        .history-item:last-child { border-bottom: none; }
+        
+        .status-indicator { margin-top: 12px; padding: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 10px; font-size: 0.85rem; color: #b8b8d1; }
+        
+        .table-section { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 30px; 
+            background: rgba(30, 30, 50, 0.7); 
+            border-radius: 15px; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+        }
+        
+        @media (max-width: 1000px) {
+            .table-section {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+        th { background-color: #4361ee; color: white; padding: 10px; text-align: center; font-size: 0.9rem; }
+        td { padding: 8px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        tr:nth-child(even) { background-color: rgba(255, 255, 255, 0.05); }
+        .selected-cell { background-color: rgba(114, 239, 221, 0.3) !important; font-weight: bold; }
+        .current-move { background-color: rgba(247, 37, 133, 0.2) !important; font-weight: bold; }
+        .completed-sequence { background-color: rgba(74, 222, 128, 0.2) !important; }
+        
+        .instructions { 
+            background: rgba(0, 0, 0, 0.2); 
+            border-radius: 10px; 
+            padding: 20px; 
+            margin-top: 10px;
+        }
+        
+        .instructions h3 { 
+            color: #72efdd; 
+            margin-bottom: 15px; 
+            font-size: 1.2rem; 
+            border-bottom: 2px solid #4361ee; 
+            padding-bottom: 8px;
+        }
+        
+        .instructions-list { 
+            list-style-type: none; 
+            padding: 0; 
+        }
+        
+        .instructions-list li { 
+            margin-bottom: 12px; 
+            padding-left: 24px; 
+            position: relative;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .instructions-list li:before { 
+            content: "•"; 
+            color: #4cc9f0; 
+            font-size: 1.2rem; 
+            position: absolute; 
+            left: 0; 
+            top: -2px;
+        }
+        
+        .instructions-list li strong { 
+            color: #72efdd; 
+        }
+        
+        .footer { text-align: center; color: #b8b8d1; font-size: 0.85rem; margin-top: 20px; padding: 15px; background: rgba(0, 0, 0, 0.2); border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-dice"></i> Joyland Predictor</h1>
+            <p class="subtitle">Track encounters and predict upcoming encounters for the Joyland Event in Lootfiend</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="tracker-section">
+                <h2 class="section-title"><i class="fas fa-hand-pointer"></i> Encounter Selector</h2>
+                <div class="encounter-selector" id="encounterSelector"></div>
+                
+                <div class="compass-selector" id="compassSelector">
+                    <button class="compass-btn" data-compass="1"><i class="fas fa-compass"></i> x1 Compass</button>
+                    <button class="compass-btn" data-compass="50"><i class="fas fa-compass"></i> x50 Compass</button>
+                </div>
+                
+                <div class="sequence-complete-notification" id="sequenceCompleteNotification">
+                    <div class="notification-icon"><i class="fas fa-flag-checkered"></i></div>
+                    <div class="notification-text">Sequence Complete! Starting new sequence...</div>
+                </div>
+                
+                <div class="sequence-tracker">
+                    <div class="current-sequence" id="currentSequenceText">No selections yet. Click an encounter to start.</div>
+                    <div class="sequence-grid" id="sequenceGrid">
+                        <div class="sequence-box" id="seqBox1">
+                            <div class="sequence-number">Sequence 1</div>
+                            <div class="sequence-status">Possible</div>
+                        </div>
+                        <div class="sequence-box" id="seqBox2">
+                            <div class="sequence-number">Sequence 2</div>
+                            <div class="sequence-status">Possible</div>
+                        </div>
+                        <div class="sequence-box" id="seqBox3">
+                            <div class="sequence-number">Sequence 3</div>
+                            <div class="sequence-status">Possible</div>
+                        </div>
+                        <div class="sequence-box" id="seqBox4">
+                            <div class="sequence-number">Sequence 4</div>
+                            <div class="sequence-status">Possible</div>
+                        </div>
+                    </div>
+                    <div class="status-indicator" id="statusIndicator">
+                        All 4 sequences are currently possible. Make selections to narrow down.
+                    </div>
+                </div>
+                
+                <div class="sequence-controls">
+                    <button class="sequence-btn undo" id="undoBtn" disabled><i class="fas fa-undo"></i> Undo</button>
+                    <button class="sequence-btn reset" id="resetBtn"><i class="fas fa-redo"></i> Reset</button>
+                </div>
+                
+                <div class="special-notification" id="specialNotification">
+                    <div class="notification-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="notification-text">Next encounter can only be <strong>Axe Ricochet</strong> or <strong>Card Realm</strong>!</div>
+                </div>
+            </div>
+            
+            <div class="counters-section">
+                <h2 class="section-title"><i class="fas fa-chart-line"></i> Counters & Tracker</h2>
+                
+                <div class="cycle-tracker">
+                    <div class="cycle-tracker-item">
+                        <div class="cycle-tracker-title">Completed Cycles</div>
+                        <div class="cycle-tracker-value" id="cycleCounter">0</div>
+                        <div class="cycle-tracker-subtitle">All 4 sequences</div>
+                    </div>
+                </div>
+                
+                <div class="counters-grid">
+                    <div class="counter">
+                        <button class="counter-reset-btn" data-counter="axe" title="Reset counter"><i class="fas fa-redo"></i></button>
+                        <div class="counter-title">Axe Ricochet (x50)</div>
+                        <div class="counter-value" id="axeCounter">0</div>
+                        <div class="counter-subtitle">Total x50 Compass</div>
+                    </div>
+                    <div class="counter">
+                        <button class="counter-reset-btn" data-counter="card" title="Reset counter"><i class="fas fa-redo"></i></button>
+                        <div class="counter-title">Card Realm (x50)</div>
+                        <div class="counter-value" id="cardCounter">0</div>
+                        <div class="counter-subtitle">Total x50 Compass</div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3><i class="fas fa-history"></i> Selection History</h3>
+                    <div class="history-list" id="historyList">
+                        <div class="history-item">No selections yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-section">
+            <div class="table-container">
+                <h2 class="section-title"><i class="fas fa-table"></i> Sequence Table</h2>
+                <div id="sequenceTable"></div>
+            </div>
+            
+            <div class="instructions">
+                <h3><i class="fas fa-info-circle"></i> How to Use</h3>
+                <ul class="instructions-list">
+                    <li><strong>Start Tracking:</strong> Click any encounter button to begin. The tool will automatically eliminate impossible sequences.</li>
+                    <li><strong>Special Encounters:</strong> When <strong>Axe Ricochet</strong> or <strong>Card Realm</strong> appear, select compass amount (x1 or x50). Counters only update for x50 selections.</li>
+                    <li><strong>Undo/Reset:</strong> Use Undo to go back one move, or Reset to start fresh.</li>
+                    <li><strong>Keyboard Shortcuts:</strong> Use number keys 1-6 to select encounters, Ctrl+Z to undo, Ctrl+R to reset.</li>
+                    <li><strong>Sequence Colors:</strong> <span style="color:#7209b7">Purple</span> = Possible, <span style="color:#f72585">Pink</span> = Active, <span style="color:#4ade80">Green</span> = Complete, <span style="color:#555">Gray</span> = Eliminated</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Joyland Predictor | For Lootfiend Joyland Event | Generated with DeepSeek AI 
+        </div>
+    </div>
+
+    <script>
+        // Optimized sequence data
+        const sequences = {
+            1: ["Tiny Adventures","Crossroads of Fate","Tiny Adventures","Blocks Duel","Tiny Adventures","Tiny Adventures","Crossroads of Fate","Card Realm","Tiny Adventures","Crossroads of Fate","Tiny Adventures","Blocks Duel","Jackpot"],
+            2: ["Tiny Adventures","Tiny Adventures","Axe Ricochet","Tiny Adventures","Crossroads of Fate","Card Realm","Tiny Adventures","Tiny Adventures","Crossroads of Fate","Jackpot","Crossroads of Fate","Tiny Adventures","Blocks Duel"],
+            3: ["Tiny Adventures","Tiny Adventures","Crossroads of Fate","Card Realm","Tiny Adventures","Tiny Adventures","Axe Ricochet","Tiny Adventures","Crossroads of Fate","Jackpot","Tiny Adventures","Blocks Duel","Crossroads of Fate"],
+            4: ["Tiny Adventures","Tiny Adventures","Card Realm","Tiny Adventures","Crossroads of Fate","Tiny Adventures","Axe Ricochet","Tiny Adventures","Crossroads of Fate","Tiny Adventures","Crossroads of Fate","Axe Ricochet","Jackpot"]
+        };
+
+        // Fixed icon mapping with requested changes
+        const encounters = [
+            {name: "Tiny Adventures", icon: "map"},
+            {name: "Crossroads of Fate", icon: "signs-post"},
+            {name: "Axe Ricochet", icon: "crosshairs"},
+            {name: "Card Realm", icon: "diamond"},
+            {name: "Blocks Duel", icon: "cube"},
+            {name: "Jackpot", icon: "crown"}
+        ];
+
+        // State management
+        let state = {
+            selections: [],
+            history: [],
+            activeSequences: [1, 2, 3, 4],
+            moveInSequence: 0,
+            currentSequenceId: null,
+            completedCycles: 0,
+            completedSequences: [],
+            axeTotal: 0,
+            cardTotal: 0,
+            showSeqCompleteNotification: false,
+            pendingSpecialEncounter: null
+        };
+
+        // DOM elements cache
+        const els = {};
+
+        // Helper function to clone state without circular references
+        function cloneState(currentState) {
+            return {
+                selections: [...currentState.selections],
+                history: [],
+                activeSequences: [...currentState.activeSequences],
+                moveInSequence: currentState.moveInSequence,
+                currentSequenceId: currentState.currentSequenceId,
+                completedCycles: currentState.completedCycles,
+                completedSequences: [...currentState.completedSequences],
+                axeTotal: currentState.axeTotal,
+                cardTotal: currentState.cardTotal,
+                showSeqCompleteNotification: currentState.showSeqCompleteNotification,
+                pendingSpecialEncounter: currentState.pendingSpecialEncounter
+            };
+        }
+
+        // Initialize
+        function init() {
+            // Cache DOM elements
+            els.encounterSelector = document.getElementById('encounterSelector');
+            els.compassSelector = document.getElementById('compassSelector');
+            els.currentSequenceText = document.getElementById('currentSequenceText');
+            els.specialNotification = document.getElementById('specialNotification');
+            els.sequenceCompleteNotification = document.getElementById('sequenceCompleteNotification');
+            els.axeCounter = document.getElementById('axeCounter');
+            els.cardCounter = document.getElementById('cardCounter');
+            els.historyList = document.getElementById('historyList');
+            els.undoBtn = document.getElementById('undoBtn');
+            els.resetBtn = document.getElementById('resetBtn');
+            els.sequenceTable = document.getElementById('sequenceTable');
+            els.cycleCounter = document.getElementById('cycleCounter');
+            els.statusIndicator = document.getElementById('statusIndicator');
+            els.sequenceGrid = document.getElementById('sequenceGrid');
+
+            initEncounterButtons();
+            generateTable();
+            updateUI();
+            
+            // Event listeners
+            els.undoBtn.addEventListener('click', undoLastMove);
+            els.resetBtn.addEventListener('click', resetAll);
+            document.addEventListener('keydown', handleKeyboard);
+            
+            // Counter reset buttons
+            document.querySelectorAll('.counter-reset-btn').forEach(btn => {
+                btn.addEventListener('click', () => resetCounter(btn.dataset.counter));
+            });
+            
+            // Compass selector buttons
+            document.querySelectorAll('.compass-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const compassCount = parseInt(this.dataset.compass);
+                    completeSpecialEncounter(compassCount);
+                });
+            });
+        }
+
+        // Initialize encounter buttons
+        function initEncounterButtons() {
+            els.encounterSelector.innerHTML = '';
+            
+            encounters.forEach(enc => {
+                const btn = document.createElement('button');
+                btn.className = 'encounter-btn';
+                btn.innerHTML = `<i class="fas fa-${enc.icon}"></i> ${enc.name}`;
+                btn.dataset.encounter = enc.name;
+                btn.addEventListener('click', () => selectEncounter(enc.name));
+                els.encounterSelector.appendChild(btn);
+            });
+        }
+
+        // Get possible next encounters
+        function getPossibleEncounters() {
+            const possible = new Set();
+            state.activeSequences.forEach(seqId => {
+                if (state.moveInSequence < 13) possible.add(sequences[seqId][state.moveInSequence]);
+            });
+            return Array.from(possible);
+        }
+
+        // Update encounter buttons
+        function updateEncounterButtons() {
+            const possible = getPossibleEncounters();
+            const buttons = document.querySelectorAll('.encounter-btn');
+            const isSpecialCase = possible.length === 2 && possible.includes("Axe Ricochet") && possible.includes("Card Realm");
+            
+            buttons.forEach(btn => {
+                const enc = btn.dataset.encounter;
+                const isPossible = possible.includes(enc);
+                btn.disabled = !isPossible || state.pendingSpecialEncounter !== null;
+                btn.classList.toggle('special', isSpecialCase && (enc === "Axe Ricochet" || enc === "Card Realm"));
+            });
+            
+            els.specialNotification.classList.toggle('show', isSpecialCase && state.pendingSpecialEncounter === null);
+            
+            // Show/hide compass selector
+            if (state.pendingSpecialEncounter) {
+                els.compassSelector.classList.add('show');
+                els.specialNotification.classList.remove('show');
+            } else {
+                els.compassSelector.classList.remove('show');
+            }
+        }
+
+        // Handle encounter selection
+        function selectEncounter(encounter) {
+            // If we have a pending special encounter, don't allow new selections
+            if (state.pendingSpecialEncounter) return;
+            
+            // Check if this is a special encounter that needs compass selection
+            if (encounter === "Axe Ricochet" || encounter === "Card Realm") {
+                state.pendingSpecialEncounter = encounter;
+                updateUI();
+                return;
+            }
+            
+            // Save state for undo
+            state.history.push(cloneState(state));
+            if (state.history.length > 50) state.history.shift();
+            
+            processEncounterSelection(encounter);
+        }
+
+        // Process encounter selection
+        function processEncounterSelection(encounter) {
+            state.selections.push(encounter);
+            
+            // Update active sequences
+            const newActive = [];
+            state.activeSequences.forEach(seqId => {
+                if (state.moveInSequence < 13 && sequences[seqId][state.moveInSequence] === encounter) {
+                    newActive.push(seqId);
+                }
+            });
+            state.activeSequences = newActive;
+            
+            // Update sequence tracking
+            state.moveInSequence++;
+            if (state.activeSequences.length === 1) state.currentSequenceId = state.activeSequences[0];
+            
+            // Check for sequence completion
+            if (state.moveInSequence >= 13) {
+                completeSequence();
+            }
+            
+            updateUI();
+        }
+
+        // Complete special encounter with compass selection
+        function completeSpecialEncounter(compassCount) {
+            if (!state.pendingSpecialEncounter) return;
+            
+            // Save state for undo
+            state.history.push(cloneState(state));
+            if (state.history.length > 50) state.history.shift();
+            
+            const encounter = state.pendingSpecialEncounter;
+            
+            // Only increment counters for x50 compass
+            if (compassCount === 50) {
+                if (encounter === "Axe Ricochet") state.axeTotal++;
+                if (encounter === "Card Realm") state.cardTotal++;
+            }
+            
+            // Add compass info to selection
+            state.selections.push(`${encounter} (x${compassCount} compass)`);
+            
+            // Update active sequences
+            const newActive = [];
+            state.activeSequences.forEach(seqId => {
+                if (state.moveInSequence < 13 && sequences[seqId][state.moveInSequence] === encounter) {
+                    newActive.push(seqId);
+                }
+            });
+            state.activeSequences = newActive;
+            
+            // Update sequence tracking
+            state.moveInSequence++;
+            if (state.activeSequences.length === 1) state.currentSequenceId = state.activeSequences[0];
+            
+            // Reset pending encounter
+            state.pendingSpecialEncounter = null;
+            
+            // Check for sequence completion
+            if (state.moveInSequence >= 13) {
+                completeSequence();
+            }
+            
+            updateUI();
+        }
+
+        // Complete a sequence
+        function completeSequence() {
+            if (state.activeSequences.length > 0) {
+                const completedSeq = state.activeSequences[0];
+                if (!state.completedSequences.includes(completedSeq)) {
+                    state.completedSequences.push(completedSeq);
+                }
+            }
+            
+            // Show sequence complete notification
+            state.showSeqCompleteNotification = true;
+            setTimeout(() => { 
+                state.showSeqCompleteNotification = false; 
+                updateUI(); 
+            }, 3000);
+            
+            // Reset for next sequence
+            state.activeSequences = getAvailableSequences();
+            state.moveInSequence = 0;
+            state.currentSequenceId = null;
+            state.pendingSpecialEncounter = null;
+            
+            // Check for cycle completion
+            if (state.completedSequences.length >= 4) {
+                state.completedCycles++;
+                state.completedSequences = [];
+                state.activeSequences = [1, 2, 3, 4];
+                // Clear history at cycle completion
+                state.selections = [];
+                state.history = [];
+            }
+        }
+
+        // Get available sequences
+        function getAvailableSequences() {
+            return [1, 2, 3, 4].filter(id => !state.completedSequences.includes(id));
+        }
+
+        // Update UI
+        function updateUI() {
+            // Update sequence text
+            if (state.selections.length === 0) {
+                els.currentSequenceText.textContent = "No selections yet. Click an encounter to start.";
+            } else {
+                const last = state.selections[state.selections.length - 1];
+                let text = `Last: ${last}`;
+                if (state.currentSequenceId) text += ` (Sequence ${state.currentSequenceId}, Move ${state.moveInSequence}/13)`;
+                else if (state.moveInSequence > 0) text += ` (Move ${state.moveInSequence}/13, ${state.activeSequences.length} sequences possible)`;
+                els.currentSequenceText.textContent = text;
+            }
+            
+            // Update sequence boxes
+            updateSequenceBoxes();
+            
+            // Update status
+            updateStatus();
+            
+            // Update counters
+            els.axeCounter.textContent = state.axeTotal;
+            els.cardCounter.textContent = state.cardTotal;
+            els.cycleCounter.textContent = state.completedCycles;
+            
+            // Update buttons and notifications
+            updateEncounterButtons();
+            els.sequenceCompleteNotification.classList.toggle('show', state.showSeqCompleteNotification);
+            
+            // Update history and table
+            updateHistory();
+            updateTable();
+            
+            // Update undo button
+            els.undoBtn.disabled = state.history.length === 0;
+        }
+
+        // Update sequence boxes
+        function updateSequenceBoxes() {
+            [1, 2, 3, 4].forEach(seqId => {
+                const box = document.getElementById(`seqBox${seqId}`);
+                box.className = 'sequence-box';
+                
+                if (state.completedSequences.includes(seqId)) {
+                    box.classList.add('completed');
+                    box.querySelector('.sequence-status').textContent = 'Complete';
+                } else if (state.activeSequences.includes(seqId)) {
+                    if (state.activeSequences.length === 1 && seqId === state.currentSequenceId) {
+                        box.classList.add('active');
+                        box.querySelector('.sequence-status').textContent = 'Active';
+                    } else {
+                        box.querySelector('.sequence-status').textContent = 'Possible';
+                    }
+                } else {
+                    box.classList.add('eliminated');
+                    box.querySelector('.sequence-status').textContent = 'Eliminated';
+                }
+            });
+        }
+
+        // Update status
+        function updateStatus() {
+            let text = '';
+            
+            if (state.pendingSpecialEncounter) {
+                text = `Select compass amount for ${state.pendingSpecialEncounter}:`;
+            } else if (state.selections.length === 0) {
+                text = 'All 4 sequences possible. Select an encounter to start.';
+            } else if (state.currentSequenceId) {
+                if (state.moveInSequence < 13) {
+                    text = `Confirmed: Sequence ${state.currentSequenceId}. Next: ${sequences[state.currentSequenceId][state.moveInSequence]}`;
+                } else {
+                    text = `Sequence ${state.currentSequenceId} completed!`;
+                }
+            } else if (state.activeSequences.length > 0) {
+                if (state.moveInSequence > 0) {
+                    text = `${state.activeSequences.length} sequence(s) possible. ${13 - state.moveInSequence} move(s) left.`;
+                } else {
+                    text = `Starting new sequence. ${state.activeSequences.length} sequence(s) possible.`;
+                }
+            }
+            
+            els.statusIndicator.textContent = text;
+        }
+
+        // Update history
+        function updateHistory() {
+            els.historyList.innerHTML = '';
+            
+            if (state.selections.length === 0) {
+                els.historyList.innerHTML = '<div class="history-item">No selections yet</div>';
+                return;
+            }
+            
+            // Show recent selections (max 15)
+            const start = Math.max(0, state.selections.length - 15);
+            for (let i = start; i < state.selections.length; i++) {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                item.textContent = `#${i + 1}: ${state.selections[i]}`;
+                els.historyList.appendChild(item);
+            }
+            
+            els.historyList.scrollTop = els.historyList.scrollHeight;
+        }
+
+        // Generate table
+        function generateTable() {
+            let html = '<table><thead><tr><th>Move</th><th>Sequence 1</th><th>Sequence 2</th><th>Sequence 3</th><th>Sequence 4</th></tr></thead><tbody>';
+            
+            for (let i = 0; i < 13; i++) {
+                html += `<tr><td>${i + 1}</td>`;
+                for (let seqId = 1; seqId <= 4; seqId++) {
+                    let cls = '';
+                    if (state.completedSequences.includes(seqId)) cls = 'completed-sequence';
+                    if (state.currentSequenceId === seqId && i === state.moveInSequence) cls += ' current-move';
+                    if (state.activeSequences.includes(seqId) && i === state.moveInSequence) cls += ' selected-cell';
+                    html += `<td class="${cls}">${sequences[seqId][i]}</td>`;
+                }
+                html += '</tr>';
+            }
+            
+            html += '</tbody></table>';
+            els.sequenceTable.innerHTML = html;
+        }
+
+        // Update table
+        function updateTable() {
+            generateTable();
+        }
+
+        // Undo last move
+        function undoLastMove() {
+            if (state.history.length === 0) return;
+            state = state.history.pop();
+            updateUI();
+        }
+
+        // Reset counter
+        function resetCounter(type) {
+            if (type === 'axe') state.axeTotal = 0;
+            if (type === 'card') state.cardTotal = 0;
+            updateUI();
+        }
+
+        // Reset all
+        function resetAll() {
+            state = {
+                selections: [],
+                history: [],
+                activeSequences: [1, 2, 3, 4],
+                moveInSequence: 0,
+                currentSequenceId: null,
+                completedCycles: 0,
+                completedSequences: [],
+                axeTotal: 0,
+                cardTotal: 0,
+                showSeqCompleteNotification: false,
+                pendingSpecialEncounter: null
+            };
+            updateUI();
+        }
+
+        // Handle keyboard shortcuts
+        function handleKeyboard(e) {
+            if (e.key >= '1' && e.key <= '6') {
+                const idx = parseInt(e.key) - 1;
+                if (idx < encounters.length) {
+                    const btn = document.querySelector(`.encounter-btn[data-encounter="${encounters[idx].name}"]`);
+                    if (btn && !btn.disabled) selectEncounter(encounters[idx].name);
+                }
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                undoLastMove();
+            }
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                resetAll();
+            }
+        }
+
+        // Start app
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
